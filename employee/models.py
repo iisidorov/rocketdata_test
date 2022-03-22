@@ -40,7 +40,7 @@ class Employee(models.Model):
     position = models.ForeignKey(Position, null=True, on_delete=models.SET_NULL)
     boss = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, )
     level = models.PositiveSmallIntegerField(default=5)
-    salary = models.DecimalField(max_digits=6, decimal_places=2)
+    salary = models.DecimalField(max_digits=10, decimal_places=2)
     start_date = models.DateTimeField(null=True)
 
     # Calculate hierarchy level
@@ -51,18 +51,20 @@ class Employee(models.Model):
             return self.boss.level + 1
 
     def is_boss_under_employee(self, boss):
-        children = Employee.objects.filter(boss=self)
-        for child in children:
-            if child == boss:
-                return True
-            else:
-                if child.is_boss_under_employee(boss):
+        # If self record already exists
+        if Employee.objects.filter(user=self.user):
+            children = Employee.objects.filter(boss=self)
+            for child in children:
+                if child == boss:
                     return True
-        return False
+                else:
+                    if child.is_boss_under_employee(boss):
+                        return True
+            return False
 
     def save(self, *args, **kwargs):
         self.level = self.get_level()
-        if self.level > 5:
+        if self.level > 4:
             raise ValueError("Cannot save employee with hierarchy level more than 5")
         if self.is_boss_under_employee(self.boss):
             raise ValueError("The specified boss is already obeys the current employee")

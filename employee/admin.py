@@ -1,6 +1,6 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils.html import format_html
-from django.db.models import Sum
+from django.db.models import Sum, Count
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext, gettext_lazy as _
 from .models import User, Position, Employee, Paylog
@@ -42,10 +42,6 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_filter = ['position', 'level']
     actions = [delete_total_salary]
 
-    def __init__(self, model, admin_site):
-        super().__init__(model, admin_site)
-        self.object_id = None
-
     # Get Total paid salary
     def total(self, obj):
         return Paylog.objects.filter(employee=obj.pk).aggregate(Sum('amount'))['amount__sum']
@@ -54,6 +50,18 @@ class EmployeeAdmin(admin.ModelAdmin):
     def boss_url(self, obj):
         if obj.boss:
             return format_html("<a href='{url}'><b>{text}</b></a>", url=obj.boss.id, text=obj.boss)
+
+    def __init__(self, model, admin_site):
+        super().__init__(model, admin_site)
+        self.object_id = None
+
+    # Prevent saving model if data is incorrect
+    def save_model(self, request, obj, form, change):
+        try:
+            super(EmployeeAdmin, self).save_model(request, obj, form, change)
+        except Exception as e:
+            messages.set_level(request, messages.ERROR)
+            messages.error(request, e)
 
     # Set EmployeeAdmin.object_id = Employee.object_id if employee is opened for update
     def change_view(self, request, object_id, form_url='', extra_context=None):
