@@ -41,4 +41,9 @@ And run the Django server:
 (venv)$ python manage.py runserver
 ```
 
+To populate Database with random data run:
+```sh
+(venv)$ python manage.py seed --mode=refresh --number=40
+```
+
 Navigate to `http://127.0.0.1:8000`.
