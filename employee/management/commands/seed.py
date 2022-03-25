@@ -6,6 +6,7 @@ number: final amount of created Employees
 """
 
 import random
+from django_celery_beat.models import IntervalSchedule, PeriodicTask
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.utils.timezone import make_aware
@@ -61,6 +62,8 @@ def generate_email(email):
 
 def clear_data(cmd):
     """Deletes all the table data"""
+    IntervalSchedule.objects.all().delete()
+    PeriodicTask.objects.all().delete()
     Position.objects.all().delete()
     User.objects.all().delete()
     cmd.stdout.write("Tables cleared")
