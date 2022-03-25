@@ -78,7 +78,7 @@ class Employee(models.Model):
 class Paylog(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     date = models.DateTimeField(null=True)
-    amount = models.DecimalField(max_digits=6, decimal_places=2)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
         return f'{self.date} {self.employee.user.email}'

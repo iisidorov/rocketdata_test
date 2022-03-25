@@ -1,6 +1,15 @@
 # Employee Platform
 
-## Setup
+### Run project with Docker Compose
+
+```sh
+$ docker compose build
+$ docker compose up
+```
+
+###_To launch it manually follow the steps below:_
+
+### Server Setup
 
 The first thing to do is to clone the repository:
 
@@ -35,17 +44,48 @@ Once `pip` has finished downloading the dependencies, run `PostgreSQL` docker co
 (venv)$ docker run --name postgres -p 5432:5432 --env-file ./.env -d postgres:13.3
 ```
 
+Apply migrations:
+
+```sh
+(venv)$ python manage.py migrate
+```
+
 And run the Django server:
 
 ```sh
 (venv)$ python manage.py runserver
 ```
 
+Navigate to `http://127.0.0.1:8000`.
+
+### Database
+
+Create admin:
+
+```sh
+(venv)$ python manage.py create_admin
+```
+
 To populate Database with random data run:
 ```sh
 (venv)$ python manage.py seed --mode=refresh --number=40
 ~~~ OR ~~~
-(venv)$ python .\populate_db_script.py
+(venv)$ python db_script.py
 ```
 
-Navigate to `http://127.0.0.1:8000`.
+### Celery
+
+Run redis docker container:
+```sh
+(venv)$ docker run --name redis -d -p 6379:6379 redis
+```
+And then celery worker:
+```sh
+(venv)$ celery -A emplatform worker -l info -P eventlet
+```
+
+In another console start celery scheduler:
+
+```sh
+(venv)$ celery -A emplatform beat -l info -s ./data/celery 
+```

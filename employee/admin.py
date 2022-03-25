@@ -1,14 +1,47 @@
+import json
+
 from django.contrib import admin, messages
 from django.utils.html import format_html
 from django.db.models import Sum, Count
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext, gettext_lazy as _
+from django.utils import timezone
+
+from django_celery_beat.models import IntervalSchedule, PeriodicTask
+from celery.schedules import crontab
+
 from .models import User, Position, Employee, Paylog
+from .tasks import delete_total_salary_task, pay_salary_task
 
 
 @admin.action(description='Delete total salary paid')
 def delete_total_salary(modeladmin, request, queryset):
-    Paylog.objects.filter(employee_id__in=queryset).delete()
+    list_ids = list(queryset.values_list('id', flat=True))
+    if len(list_ids) > 20:
+        delete_total_salary_task.delay(list_ids)
+    else:
+        delete_total_salary_task(list_ids)
+
+
+@admin.action(description='Start paying salary')
+def pay_salary(modeladmin, request, queryset):
+    every = 2
+    period = 'hours'
+    list_ids = list(queryset.values_list('id', flat=True))
+    interval = IntervalSchedule.objects.filter(every=every, period=period).first()
+    if not interval:
+        interval = IntervalSchedule(every=every, period=period)
+        interval.save()
+    for emp_id in list_ids:
+        if not PeriodicTask.objects.filter(name=f'Employee: {emp_id}'):
+            period_task = PeriodicTask.objects.create(
+                name=f'Employee: {emp_id}',
+                task='employee.tasks.pay_salary_task',
+                interval=interval,
+                args=json.dumps([emp_id]),
+                start_time=timezone.now()
+            )
+            period_task.save()
 
 
 @admin.register(User)
@@ -40,7 +73,7 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_display = ('user', 'position', 'boss_url', 'level', 'salary', 'total')
     exclude = ('level', )
     list_filter = ['position', 'level']
-    actions = [delete_total_salary]
+    actions = [delete_total_salary, pay_salary]
 
     # Get Total paid salary
     def total(self, obj):

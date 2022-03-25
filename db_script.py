@@ -17,7 +17,7 @@ CLEAR = 'clear'
 # Modify executing options:
 DEBUG = False       # Additional logs
 MODE = REFRESH      # REFRESH / CLEAR
-NUMBER = 100        # Final amount of employees to create
+NUMBER = 200        # Final amount of employees to create
 
 
 """ General random values """
@@ -87,6 +87,8 @@ def clear_data(connection):
     # Clearing all tables
     query = """
     BEGIN;
+    TRUNCATE TABLE django_celery_beat_periodictask CASCADE;
+    TRUNCATE TABLE django_celery_beat_intervalschedule CASCADE;
     TRUNCATE TABLE employee_basemodel CASCADE;
     TRUNCATE TABLE employee_user CASCADE;
     TRUNCATE TABLE employee_position CASCADE;

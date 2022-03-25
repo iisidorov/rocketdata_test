@@ -1,0 +1,74 @@
+version: "3.2"
+services:
+  redis:
+    container_name: redis
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/var/lib/redis
+      - ./data/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    restart: always
+
+  postgres:
+    container_name: postgres
+    image: postgres:13.3
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    restart: always
+
+  django:
+    container_name: django
+    command: bash -c "python manage.py migrate &&
+                      python manage.py create_admin &&
+                      python db_script.py &&
+                      python manage.py runserver 0.0.0.0:8000"
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    image: django
+    restart: always
+
+  celery-worker:
+    container_name: celery-worker
+    command: bash -c "celery -A emplatform worker -l info -P eventlet"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    image: django
+    restart: always
+
+  celery-beat:
+    container_name: celery-beat
+    command: bash -c "celery -A emplatform beat -l info -s ./data/celery"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    image: django
+    restart: always
