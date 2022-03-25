@@ -36,6 +36,7 @@ EMPLOYEES_LEVEL_ID = []
 
 # Import environment variables
 load_dotenv()
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL')
 
 
 def create_connection(db_name, db_user, db_password, db_host, db_port):
@@ -78,11 +79,18 @@ def execute_read_query(connection, query):
 
 def clear_data(connection):
     # Save admin row
-    query = """
+    admin_exists = False
+    query = f"""
     SELECT password FROM employee_user
-    WHERE email='admin@admin.com'
+    WHERE email='{ADMIN_EMAIL}'
     """
-    password = execute_read_query(connection, query)[0][0]
+    try:
+        password = execute_read_query(connection, query)
+        password = password[0][0]
+        admin_exists = True
+    except Exception as e:
+        print("No admin instance", f"Exception: [{e}]")
+        execute_query(connection, "ROLLBACK;")
 
     # Clearing all tables
     query = """
@@ -97,8 +105,9 @@ def clear_data(connection):
     execute_query(connection, query)
     print("Tables cleared")
 
-    create_users(connection, [('admin@admin.com', password, 'admin',
-                               'admin', 'admin', True, True)])
+    if admin_exists:
+        create_users(connection, [(ADMIN_EMAIL, password, 'admin',
+                                   'admin', 'admin', True, True)])
 
 
 def populate_positions(connection):

@@ -60,12 +60,6 @@ Navigate to `http://127.0.0.1:8000`.
 
 ### Database
 
-Create admin:
-
-```sh
-(venv)$ python manage.py create_admin
-```
-
 To populate Database with random data run:
 ```sh
 (venv)$ python manage.py seed --mode=refresh --number=40
