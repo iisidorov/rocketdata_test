@@ -6,6 +6,7 @@ from django.db.models import Sum, Count
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext, gettext_lazy as _
 from django.utils import timezone
+from django.urls import resolve
 
 from django_celery_beat.models import IntervalSchedule, PeriodicTask
 from celery.schedules import crontab
@@ -70,19 +71,30 @@ class PositionAdmin(admin.ModelAdmin):
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ('user', 'position', 'boss_url', 'level', 'salary', 'total')
+    list_display = ('user', 'position', 'boss_url', 'salary', 'total',)
+    ordering = ('user__last_name',)
     exclude = ('level', )
     list_filter = ['position', 'level']
     actions = [delete_total_salary, pay_salary]
 
+    def get_queryset(self, request):
+        qs = super(EmployeeAdmin, self).get_queryset(request)
+        qs = qs.annotate(total_salary=Sum('paylog__amount'))
+        return qs
+
     # Get Total paid salary
     def total(self, obj):
-        return Paylog.objects.filter(employee=obj.pk).aggregate(Sum('amount'))['amount__sum']
+        paylog = Paylog.objects.filter(employee=obj.pk).aggregate(Sum('amount'))['amount__sum']
+        return paylog
 
     # Get URL of the employee's boss
     def boss_url(self, obj):
         if obj.boss:
             return format_html("<a href='{url}'><b>{text}</b></a>", url=obj.boss.id, text=obj.boss)
+
+    total.admin_order_field = 'total_salary'
+    total.empty_value_display = '0'
+    boss_url.admin_order_field = 'boss__user__last_name'
 
     def __init__(self, model, admin_site):
         super().__init__(model, admin_site)
@@ -101,10 +113,14 @@ class EmployeeAdmin(admin.ModelAdmin):
         self.object_id = object_id
         return super(EmployeeAdmin, self).change_view(request, object_id, form_url, extra_context=extra_context)
 
-    # Exclude self object from boss list to avoid making yourself a boss of yourself (if employee exists)
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "boss" and self.object_id:
-            kwargs['queryset'] = Employee.objects.exclude(pk=self.object_id)
+        if db_field.name == "boss":
+            kwargs["queryset"] = Employee.objects.order_by('user')
+            # Exclude self object from boss list (if employee exists)
+            if self.object_id:
+                kwargs['queryset'] = Employee.objects.exclude(pk=self.object_id).order_by('user')
+        if db_field.name == "position":
+            kwargs["queryset"] = Position.objects.order_by('name')
         return super(EmployeeAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 
