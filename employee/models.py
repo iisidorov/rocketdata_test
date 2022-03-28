@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.contrib import admin
 from .managers import UserManager
 
 
@@ -24,12 +25,18 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
 
     objects = UserManager()
 
+    class Meta:
+        ordering = ('last_name', 'first_name', 'father_name',)
+
     def __str__(self):
         return f'{self.last_name} {self.first_name} {self.father_name}'
 
 
 class Position(models.Model):
     name = models.CharField(max_length=30, verbose_name='Name')
+
+    class Meta:
+        ordering = ('name',)
 
     def __str__(self):
         return f'{self.name}'
@@ -42,6 +49,9 @@ class Employee(models.Model):
     level = models.PositiveSmallIntegerField(default=5)
     salary = models.DecimalField(max_digits=10, decimal_places=2)
     start_date = models.DateTimeField(null=True)
+
+    user.ordering = 'user__last_name'
+    position.ordering = 'position__name'
 
     # Calculate hierarchy level
     def get_level(self):
